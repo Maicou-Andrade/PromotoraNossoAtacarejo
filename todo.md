@@ -1,0 +1,57 @@
+# Project TODO - Nosso Atacarejo - Gestão de Promotoras
+
+- [x] Identidade visual com logo e cores do Nosso Atacarejo
+- [x] Cadastro de Promotoras (nome, CPF, telefone, loja, senha)
+- [x] Edição e inativação de promotoras
+- [x] Lojas fixas: Pau dos Ferros, São Miguel, Limoeiro do Norte, Quixadá, Assú, Morada Nova
+- [x] Aba Lançamentos com modal de cadastro
+- [x] Autocomplete de promotora ativa no lançamento
+- [x] Campos: nome cliente, CPF cliente (máscara), data automática
+- [x] Loja carregada automaticamente baseado na promotora
+- [x] Validação de senha da promotora no lançamento
+- [x] Máscara LGPD no CPF (***.XXX.XXX-**)
+- [x] Filtros com dropdown e autocomplete (promotora, loja, data, cliente)
+- [x] Gráficos por dia, semana, mês
+- [x] Ranking de promotoras
+- [x] Meta de 80 cadastros com barra de progresso
+- [x] Tela sem login (acesso público)
+- [x] Cadastrar 4 promotoras iniciais no banco de dados
+- [x] Cadastrar promotora Jamilly Tavares
+- [x] Criar tabela de metas no banco (meta mensal, data início, data fim, meta por promotora)
+- [x] Cálculo automático de meta diária (meta mensal / dias úteis 5d/semana)
+- [x] API CRUD de metas (criar, listar, editar, excluir)
+- [x] Frontend - Aba/Página de Cadastro de Metas
+- [x] Atualizar dashboard/gráficos para filtrar por período da meta
+- [x] Dashboard mostrar quantidade por promotora e percentual da meta
+- [x] Meta individual por promotora dentro de cada período
+- [x] Dashboard por dia da semana (seg, ter, qua, qui, sex)
+- [x] Todos os gráficos com percentual da meta
+- [x] Filtros completos no dashboard: loja, data (período), promotora
+- [x] Excluir lançamento com senha de administrador (Nosso@2025) via modal
+- [x] Dashboard: datas padrão baseadas na meta vigente do mês atual
+- [x] Card % geral por loja no dashboard
+- [x] Registro de atendimentos (data + quantidade) por promotora
+- [x] Taxa de conversão (Índice de Assertividade) - atendidos vs cadastros
+- [x] Card de conversão geral e por promotora
+- [x] Dia da semana compacto no dashboard
+- [x] % da meta e % do total em todos os cards
+- [x] 100% responsivo mobile em todas as telas e modais
+- [x] Meta: salvar, editar e remover exigem senha de administrador
+- [x] Meta diária por promotora (individual) no cadastro de metas
+- [x] Dashboard de acompanhamento: dias atingidos vs não atingidos por promotora
+- [x] Indicador de quem não está atingindo meta e quantos dias falharam
+- [x] Mostrar valores numéricos nos gráficos (Dia da Semana, Semana, Dia)
+- [x] Adicionar visualização loja a loja no dashboard com mesmas métricas
+- [x] Aba Lançamentos: filtro de data com default de ontem
+- [x] Aba Lançamentos: filtro por promotora
+- [x] Aba Lançamentos: listagem agrupada por promotora
+- [x] Aba Lançamentos: cards de indicadores com quantidade por promotora na data filtrada
+- [x] Alterar logo para MS Consultoria
+- [x] Alterar cores da aplicação para #011A23
+- [x] Adicionar rodapé com informações de contacto e copyright da MS Consultoria
+- [x] Criar tabela cadastro_base_mercafacil no schema
+- [x] Carga inicial dos dados do PostgreSQL externo (aguardando dados serem recarregados)
+- [x] Criar API/script de sincronização diária às 03:00
+- [x] Card "Total Cadastro Geral" no dashboard (count da Mercafacil a partir de 01/02/2026)
+- [x] Cruzamento CPFs: lançamentos promotoras vs base Mercafacil
+- [x] Indicadores: cadastros via promotoras, cadastros por fora, % participação CRM
