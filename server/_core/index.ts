@@ -22,7 +22,7 @@ app.use(
 
 // Serve static frontend in production
 if (ENV.isProduction) {
-  const distPath = path.join(__dirname, "../public");
+  const distPath = path.join(__dirname, "public");
   console.log("Serving frontend from:", distPath);
   app.use(express.static(distPath));
   app.get("*", (_req, res) => {
