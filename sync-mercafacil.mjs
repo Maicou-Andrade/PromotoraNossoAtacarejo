@@ -17,9 +17,9 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const PG_CONFIG = {
   host: '189.126.142.41',
-  user: 'dbatacarejo',
+  user: 'postgres',
   password: 'u98>C{8WO2xF',
-  database: 'Atacarejo',
+  database: 'dbatacarejo',
   port: 5432,
 };
 
