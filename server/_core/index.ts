@@ -37,7 +37,7 @@ app.listen(PORT, () => {
 });
 
 // Cron: sync Mercafacil todos os dias às 03:00
-const syncScript = path.join(__dirname, "..", "..", "sync-mercafacil.mjs");
+const syncScript = path.join(__dirname, "..", "sync-mercafacil.mjs");
 
 function runSync(full = false) {
   const args = full ? [syncScript, "--full"] : [syncScript];
