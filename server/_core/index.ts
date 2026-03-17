@@ -22,6 +22,28 @@ app.use(
   })
 );
 
+// Rota de teste: conexão com banco externo PostgreSQL (Mercafacil/DW)
+app.get("/api/teste-db", async (_req, res) => {
+  const { default: pg } = await import("pg");
+  const { Client } = pg;
+  const client = new Client({
+    host: "189.126.142.41",
+    port: 5432,
+    database: "Atacarejo",
+    user: "dbatacarejo",
+    password: "u98>C{8WO2xF",
+    connectionTimeoutMillis: 20000,
+  });
+  try {
+    await client.connect();
+    const result = await client.query("SELECT * FROM filial LIMIT 5;");
+    await client.end();
+    res.json({ status: "CONECTOU", linhas: result.rows });
+  } catch (e: any) {
+    res.json({ status: "ERRO", mensagem: e.message });
+  }
+});
+
 // Serve static frontend in production
 if (ENV.isProduction) {
   const distPath = path.join(__dirname, "public");
@@ -52,28 +74,6 @@ function runSync(full = false) {
 
 cron.schedule("0 3 * * *", () => runSync(false), { timezone: "America/Fortaleza" });
 console.log("[Cron] Sync Mercafacil agendado para 03:00 (Fortaleza)");
-
-// Rota de teste: conexão com banco externo PostgreSQL (Mercafacil/DW)
-app.get("/api/teste-db", async (_req, res) => {
-  const { default: pg } = await import("pg");
-  const { Client } = pg;
-  const client = new Client({
-    host: "189.126.142.41",
-    port: 5432,
-    database: "Atacarejo",
-    user: "dbatacarejo",
-    password: "u98>C{8WO2xF",
-    connectionTimeoutMillis: 20000,
-  });
-  try {
-    await client.connect();
-    const result = await client.query("SELECT * FROM filial LIMIT 5;");
-    await client.end();
-    res.json({ status: "CONECTOU", linhas: result.rows });
-  } catch (e: any) {
-    res.json({ status: "ERRO", mensagem: e.message });
-  }
-});
 
 // Rota para disparar sync manualmente
 app.post("/api/sync-mercafacil", (_req, res) => {
