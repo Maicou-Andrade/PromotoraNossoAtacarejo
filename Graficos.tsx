@@ -72,6 +72,7 @@ export default function Graficos() {
   const [dataFim, setDataFim] = useState(getTodayISO());
   const [datesInitialized, setDatesInitialized] = useState(false);
   const [modalCadastroGeral, setModalCadastroGeral] = useState(false);
+  const [modalNaoEncontrados, setModalNaoEncontrados] = useState(false);
 
   const { data: promotorasAtivas = [] } = trpc.promotora.list.useQuery({ apenasAtivas: true });
   const { data: metaVigente } = trpc.meta.current.useQuery();
@@ -110,6 +111,12 @@ export default function Graficos() {
     loja: filterLoja || undefined,
     promotoraId: filterPromotora || undefined,
   }, { enabled: modalCadastroGeral });
+  const { data: naoEncontradosDetalhe, isLoading: loadingNaoEncontrados } = trpc.mercafacil.naoEncontradosDetalhe.useQuery({
+    dataInicio: dataInicio || undefined,
+    dataFim: dataFim || undefined,
+    loja: filterLoja || undefined,
+    promotoraId: filterPromotora || undefined,
+  }, { enabled: modalNaoEncontrados });
 
   const lojaOptions = LOJAS.map((l) => ({ label: l, value: l }));
   const promotoraOptions = promotorasAtivas.map((p: any) => ({ label: `${p.nome} - ${p.loja}`, value: p.id }));
@@ -251,16 +258,19 @@ export default function Graficos() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-l-4 border-l-rose-500">
+          <Card
+            className="shadow-sm border-l-4 border-l-rose-500 cursor-pointer hover:shadow-md hover:border-l-rose-600 transition-all group"
+            onClick={() => setModalNaoEncontrados(true)}
+          >
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-start gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 bg-rose-100 rounded-lg flex-shrink-0">
+                <div className="p-1.5 sm:p-2 bg-rose-100 rounded-lg flex-shrink-0 group-hover:bg-rose-200 transition-colors">
                   <Target className="h-4 w-4 sm:h-5 sm:w-5 text-rose-600" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] sm:text-xs text-muted-foreground">Não Encontrados</p>
                   <p className="text-xl sm:text-2xl font-bold text-rose-600">{cruzamento?.naoEncontradosNaBase || 0}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Lançados mas não na base</p>
+                  <p className="text-[10px] sm:text-xs text-rose-500 font-medium group-hover:underline">Ver detalhe →</p>
                 </div>
               </div>
             </CardContent>
@@ -400,6 +410,119 @@ export default function Graficos() {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ======= MODAL: NÃO ENCONTRADOS NA BASE ======= */}
+      {modalNaoEncontrados && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setModalNaoEncontrados(false); }}
+        >
+          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border/50">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 rounded-lg">
+                  <Target className="h-5 w-5 text-rose-600" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-foreground">Não Encontrados na Base</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Lançados pelo CRM mas sem cadastro na Mercafacil
+                    {dataInicio && dataFim && ` · ${formatDateBR(dataInicio)} até ${formatDateBR(dataFim)}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalNaoEncontrados(false)}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-4">
+              {loadingNaoEncontrados ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-muted-foreground text-sm">Carregando dados...</div>
+                </div>
+              ) : !naoEncontradosDetalhe || naoEncontradosDetalhe.length === 0 ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center space-y-2">
+                    <p className="text-muted-foreground text-sm">Nenhum registro não encontrado no período. ✅</p>
+                    <p className="text-muted-foreground text-xs">Todos os CPFs lançados constam na base Mercafacil.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Totalizador */}
+                  {(() => {
+                    const totalClientes = naoEncontradosDetalhe.reduce((s: number, p: any) => s + p.clientes.length, 0);
+                    const totalPromotoras = naoEncontradosDetalhe.length;
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border bg-rose-50 border-rose-200 p-3 text-center">
+                          <p className="text-[10px] sm:text-xs text-rose-600 font-medium mb-1">Total Não Encontrados</p>
+                          <p className="text-xl sm:text-2xl font-bold text-rose-700">{totalClientes}</p>
+                          <p className="text-[10px] text-rose-500">CPFs lançados sem retorno</p>
+                        </div>
+                        <div className="rounded-xl border bg-orange-50 border-orange-200 p-3 text-center">
+                          <p className="text-[10px] sm:text-xs text-orange-600 font-medium mb-1">Promotoras Envolvidas</p>
+                          <p className="text-xl sm:text-2xl font-bold text-orange-700">{totalPromotoras}</p>
+                          <p className="text-[10px] text-orange-500">com ao menos 1 não encontrado</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Agrupado por promotora */}
+                  <div className="space-y-3">
+                    {naoEncontradosDetalhe.map((p: any) => (
+                      <div key={p.promotoraId} className="rounded-xl border overflow-hidden">
+                        {/* Header promotora */}
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-rose-50 border-b border-rose-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span className="text-sm font-bold text-foreground">{p.nomePromotora}</span>
+                            <span className="text-xs text-muted-foreground">— {p.loja}</span>
+                          </div>
+                          <span className="text-xs font-semibold text-rose-600 bg-rose-100 border border-rose-200 rounded-full px-2.5 py-0.5">
+                            {p.clientes.length} não encontrado{p.clientes.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        {/* Tabela clientes */}
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/40 border-b">
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">Nome</th>
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">CPF</th>
+                              <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground">Data Lançamento</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {p.clientes.map((c: any, i: number) => {
+                              const [ano, mes, dia] = c.dataCadastro.split("-");
+                              return (
+                                <tr key={c.cpf + i} className={`border-b last:border-0 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                                  <td className="px-4 py-2 text-xs sm:text-sm font-medium">{c.nome}</td>
+                                  <td className="px-4 py-2 text-xs text-muted-foreground font-mono">{c.cpf}</td>
+                                  <td className="px-4 py-2 text-xs text-right text-muted-foreground">{`${dia}/${mes}/${ano}`}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}

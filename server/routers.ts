@@ -831,6 +831,79 @@ export const appRouter = router({
         };
       }),
 
+    // Detalhe dos não encontrados: lançamentos que não estão na base Mercafacil, agrupados por promotora
+    naoEncontradosDetalhe: publicProcedure
+      .input(z.object({
+        dataInicio: z.string().optional(),
+        dataFim: z.string().optional(),
+        loja: z.string().optional(),
+        promotoraId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const DATA_INICIO = input?.dataInicio || "2026-02-01";
+        const DATA_FIM = input?.dataFim;
+
+        const lancConditions: any[] = [];
+        if (input?.loja) lancConditions.push(eq(lancamentos.loja, input.loja));
+        if (input?.promotoraId) lancConditions.push(eq(lancamentos.promotoraId, input.promotoraId));
+        if (DATA_INICIO) lancConditions.push(gte(lancamentos.dataCadastro, DATA_INICIO));
+        if (DATA_FIM) lancConditions.push(lte(lancamentos.dataCadastro, DATA_FIM));
+
+        const allLanc = await db
+          .select({
+            cpf: lancamentos.cpfCliente,
+            nomeCliente: lancamentos.nomeCliente,
+            dataCadastro: lancamentos.dataCadastro,
+            loja: lancamentos.loja,
+            promotoraId: lancamentos.promotoraId,
+            nomePromotora: promotoras.nome,
+          })
+          .from(lancamentos)
+          .leftJoin(promotoras, eq(lancamentos.promotoraId, promotoras.id))
+          .where(lancConditions.length > 0 ? and(...lancConditions) : undefined);
+
+        const mercaConditions: any[] = [gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_INICIO + "T00:00:00"))];
+        if (DATA_FIM) mercaConditions.push(lte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_FIM + "T23:59:59")));
+
+        const mercaRecords = await db.select({ cpf: cadastroBaseMercafacil.cpfCnpj })
+          .from(cadastroBaseMercafacil)
+          .where(and(...mercaConditions));
+
+        const mercaCpfSet = new Set(mercaRecords.map((m: any) => m.cpf.replace(/[^\d]/g, "")));
+
+        const naoEncontrados = allLanc.filter((l: any) => !mercaCpfSet.has(l.cpf.replace(/[^\d]/g, "")));
+
+        const porPromotora = new Map<number, {
+          promotoraId: number;
+          nomePromotora: string;
+          loja: string;
+          clientes: { nome: string; cpf: string; dataCadastro: string }[];
+        }>();
+
+        naoEncontrados.forEach((l: any) => {
+          const pid = l.promotoraId;
+          if (!porPromotora.has(pid)) {
+            porPromotora.set(pid, {
+              promotoraId: pid,
+              nomePromotora: l.nomePromotora || `Promotora #${pid}`,
+              loja: l.loja,
+              clientes: [],
+            });
+          }
+          porPromotora.get(pid)!.clientes.push({
+            nome: l.nomeCliente,
+            cpf: l.cpf,
+            dataCadastro: l.dataCadastro,
+          });
+        });
+
+        return Array.from(porPromotora.values())
+          .sort((a, b) => b.clientes.length - a.clientes.length);
+      }),
+
     // Status da última sincronização
     syncStatus: publicProcedure.query(async () => {
       const db = await getDb();
