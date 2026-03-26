@@ -61,7 +61,7 @@ async function syncFull() {
     console.log('[Mercafacil Sync] Cleared existing data');
     
     // Count total records
-    const countResult = await pgClient.query('SELECT count(*) FROM cad_fornecedor');
+    const countResult = await pgClient.query('SELECT count(*) FROM public.cad_fornecedor');
     const total = parseInt(countResult.rows[0].count);
     console.log(`[Mercafacil Sync] Total records to import: ${total}`);
     
@@ -72,7 +72,7 @@ async function syncFull() {
     while (offset < total) {
       const result = await pgClient.query(
         `SELECT nome, cpf_cnpj, data_aniversario, genero, estado, cidade, bairro, data_criacao, data_atualizacao 
-         FROM cad_fornecedor 
+         FROM public.cad_fornecedor 
          ORDER BY data_criacao ASC NULLS FIRST
          LIMIT $1 OFFSET $2`,
         [BATCH_SIZE, offset]
@@ -147,7 +147,7 @@ async function syncIncremental() {
       console.log(`[Mercafacil Sync] Last record date: ${lastDate}`);
       // Fetch records created or updated after last sync
       query = `SELECT nome, cpf_cnpj, data_aniversario, genero, estado, cidade, bairro, data_criacao, data_atualizacao 
-               FROM cad_fornecedor 
+               FROM public.cad_fornecedor 
                WHERE data_criacao > $1 OR data_atualizacao > $1
                ORDER BY data_criacao ASC NULLS FIRST`;
       params = [lastDate];
