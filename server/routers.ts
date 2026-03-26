@@ -777,26 +777,30 @@ export const appRouter = router({
           naoEncontradosNaBase: 0,
         };
 
-        const DATA_REF = "2026-02-01";
+        const DATA_INICIO = input?.dataInicio || "2026-02-01";
+        const DATA_FIM = input?.dataFim;
 
-        // Get lancamentos CPFs with filters
-        const lancConditions = [];
+        // Get lancamentos CPFs with filters (pelo período selecionado)
+        const lancConditions: any[] = [];
         if (input?.loja) lancConditions.push(eq(lancamentos.loja, input.loja));
         if (input?.promotoraId) lancConditions.push(eq(lancamentos.promotoraId, input.promotoraId));
-        if (input?.dataInicio) lancConditions.push(gte(lancamentos.dataCadastro, input.dataInicio));
-        if (input?.dataFim) lancConditions.push(lte(lancamentos.dataCadastro, input.dataFim));
+        if (DATA_INICIO) lancConditions.push(gte(lancamentos.dataCadastro, DATA_INICIO));
+        if (DATA_FIM) lancConditions.push(lte(lancamentos.dataCadastro, DATA_FIM));
 
         const allLanc = lancConditions.length > 0
           ? await db.select({ cpf: lancamentos.cpfCliente }).from(lancamentos).where(and(...lancConditions))
           : await db.select({ cpf: lancamentos.cpfCliente }).from(lancamentos);
 
         // Normalize CPFs from lancamentos (remove dots and dashes)
-        const lancCpfs = new Set(allLanc.map(l => l.cpf.replace(/[^\d]/g, '')));
+        const lancCpfs = new Set(allLanc.map((l: any) => l.cpf.replace(/[^\d]/g, '')));
 
-        // Get Mercafacil CPFs from the reference date
+        // Get Mercafacil CPFs — mesmo filtro de data aplicado ao totalGeral
+        const mercaConditions: any[] = [gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_INICIO + "T00:00:00"))];
+        if (DATA_FIM) mercaConditions.push(lte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_FIM + "T23:59:59")));
+
         const mercaRecords = await db.select({ cpf: cadastroBaseMercafacil.cpfCnpj })
           .from(cadastroBaseMercafacil)
-          .where(gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_REF + "T00:00:00")));
+          .where(and(...mercaConditions));
 
         const mercaCpfs = new Set(mercaRecords.map(m => m.cpf.replace(/[^\d]/g, '')));
 
