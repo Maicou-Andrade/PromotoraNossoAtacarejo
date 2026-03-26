@@ -677,16 +677,86 @@ export const appRouter = router({
   }),
 
   mercafacil: router({
-    // Total geral de cadastros na base Mercafacil a partir de 01/02/2026
-    totalGeral: publicProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return { total: 0 };
-      const DATA_REF = "2026-02-01";
-      const result = await db.select({ count: sql<number>`count(*)` })
-        .from(cadastroBaseMercafacil)
-        .where(gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_REF + "T00:00:00")));
-      return { total: Number(result[0]?.count || 0) };
-    }),
+    // Total geral de cadastros na base Mercafacil — respeita filtro de data
+    totalGeral: publicProcedure
+      .input(z.object({
+        dataInicio: z.string().optional(),
+        dataFim: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { total: 0 };
+        const DATA_REF = input?.dataInicio || "2026-02-01";
+        const conditions: any[] = [gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_REF + "T00:00:00"))];
+        if (input?.dataFim) conditions.push(lte(cadastroBaseMercafacil.dataCriacao, new Date(input.dataFim + "T23:59:59")));
+        const result = await db.select({ count: sql<number>`count(*)` })
+          .from(cadastroBaseMercafacil)
+          .where(and(...conditions));
+        return { total: Number(result[0]?.count || 0) };
+      }),
+
+    // Cadastros gerais dia a dia com cruzamento CRM vs Sem CRM
+    cadastroGeralPorDia: publicProcedure
+      .input(z.object({
+        dataInicio: z.string().optional(),
+        dataFim: z.string().optional(),
+        loja: z.string().optional(),
+        promotoraId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const DATA_REF = input?.dataInicio || "2026-02-01";
+
+        // Get ALL lancamento CPFs como base do time CRM (filtrado por loja/promotora se informado)
+        const lancConditions: any[] = [];
+        if (input?.loja) lancConditions.push(eq(lancamentos.loja, input.loja));
+        if (input?.promotoraId) lancConditions.push(eq(lancamentos.promotoraId, input.promotoraId));
+
+        const allLanc = lancConditions.length > 0
+          ? await db.select({ cpf: lancamentos.cpfCliente }).from(lancamentos).where(and(...lancConditions))
+          : await db.select({ cpf: lancamentos.cpfCliente }).from(lancamentos);
+
+        const lancCpfSet = new Set(allLanc.map((l: any) => l.cpf.replace(/[^\d]/g, '')));
+
+        // Get Mercafacil records filtrado por dataCriacao
+        const mercaConditions: any[] = [
+          gte(cadastroBaseMercafacil.dataCriacao, new Date(DATA_REF + "T00:00:00")),
+        ];
+        if (input?.dataFim) {
+          mercaConditions.push(lte(cadastroBaseMercafacil.dataCriacao, new Date(input.dataFim + "T23:59:59")));
+        }
+
+        const mercaRecords = await db
+          .select({ cpf: cadastroBaseMercafacil.cpfCnpj, dataCriacao: cadastroBaseMercafacil.dataCriacao })
+          .from(cadastroBaseMercafacil)
+          .where(and(...mercaConditions));
+
+        // Agrupar por dia
+        const dayMap = new Map<string, { total: number; viaCRM: number; semCRM: number }>();
+
+        mercaRecords.forEach((record: any) => {
+          if (!record.dataCriacao) return;
+          const d = new Date(record.dataCriacao);
+          const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+          if (!dayMap.has(dayKey)) dayMap.set(dayKey, { total: 0, viaCRM: 0, semCRM: 0 });
+          const day = dayMap.get(dayKey)!;
+          day.total++;
+
+          const cpfNorm = record.cpf.replace(/[^\d]/g, '');
+          if (lancCpfSet.has(cpfNorm)) {
+            day.viaCRM++;
+          } else {
+            day.semCRM++;
+          }
+        });
+
+        return Array.from(dayMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([data, counts]) => ({ data, ...counts }));
+      }),
 
     // Cruzamento de CPFs: lançamentos das promotoras vs base Mercafacil
     cruzamento: publicProcedure

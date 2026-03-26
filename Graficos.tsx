@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import {
   Trophy, TrendingUp, Target, Calendar, Users, Award, Medal,
-  Calculator, Filter, Store, Percent, BarChart3, Database, GitCompare,
+  Calculator, Filter, Store, Percent, BarChart3, Database, GitCompare, X,
 } from "lucide-react";
 
 const MONTH_NAMES: Record<string, string> = {
@@ -71,6 +71,7 @@ export default function Graficos() {
   const [dataInicio, setDataInicio] = useState(getMonthStartISO());
   const [dataFim, setDataFim] = useState(getTodayISO());
   const [datesInitialized, setDatesInitialized] = useState(false);
+  const [modalCadastroGeral, setModalCadastroGeral] = useState(false);
 
   const { data: promotorasAtivas = [] } = trpc.promotora.list.useQuery({ apenasAtivas: true });
   const { data: metaVigente } = trpc.meta.current.useQuery();
@@ -92,7 +93,10 @@ export default function Graficos() {
     dataFim: dataFim || undefined,
   });
 
-  const { data: mercafacilTotal } = trpc.mercafacil.totalGeral.useQuery();
+  const { data: mercafacilTotal } = trpc.mercafacil.totalGeral.useQuery({
+    dataInicio: dataInicio || undefined,
+    dataFim: dataFim || undefined,
+  });
   const { data: cruzamento } = trpc.mercafacil.cruzamento.useQuery({
     loja: filterLoja || undefined,
     promotoraId: filterPromotora || undefined,
@@ -100,6 +104,12 @@ export default function Graficos() {
     dataFim: dataFim || undefined,
   });
   const { data: syncStatus } = trpc.mercafacil.syncStatus.useQuery();
+  const { data: cadastroGeralPorDia, isLoading: loadingCadastroGeral } = trpc.mercafacil.cadastroGeralPorDia.useQuery({
+    dataInicio: dataInicio || undefined,
+    dataFim: dataFim || undefined,
+    loja: filterLoja || undefined,
+    promotoraId: filterPromotora || undefined,
+  }, { enabled: modalCadastroGeral });
 
   const lojaOptions = LOJAS.map((l) => ({ label: l, value: l }));
   const promotoraOptions = promotorasAtivas.map((p: any) => ({ label: `${p.nome} - ${p.loja}`, value: p.id }));
@@ -193,16 +203,19 @@ export default function Graficos() {
       {/* Mercafacil - Total Cadastro Geral */}
       {(mercafacilTotal || cruzamento) && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="shadow-sm border-l-4 border-l-indigo-500">
+          <Card
+            className="shadow-sm border-l-4 border-l-indigo-500 cursor-pointer hover:shadow-md hover:border-l-indigo-600 transition-all group"
+            onClick={() => setModalCadastroGeral(true)}
+          >
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-start gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 bg-indigo-100 rounded-lg flex-shrink-0">
+                <div className="p-1.5 sm:p-2 bg-indigo-100 rounded-lg flex-shrink-0 group-hover:bg-indigo-200 transition-colors">
                   <Database className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] sm:text-xs text-muted-foreground">Total Cadastro Geral</p>
                   <p className="text-xl sm:text-2xl font-bold text-foreground">{mercafacilTotal?.total || 0}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Base Mercafacil</p>
+                  <p className="text-[10px] sm:text-xs text-indigo-500 font-medium group-hover:underline">Ver dia a dia →</p>
                 </div>
               </div>
             </CardContent>
@@ -252,6 +265,146 @@ export default function Graficos() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ======= MODAL: CADASTRO GERAL DIA A DIA ======= */}
+      {modalCadastroGeral && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setModalCadastroGeral(false); }}
+        >
+          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border/50">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <Database className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-foreground">Cadastros Geral — Dia a Dia</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Base Mercafacil × Lançamentos CRM
+                    {dataInicio && dataFim && ` · ${formatDateBR(dataInicio)} até ${formatDateBR(dataFim)}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalCadastroGeral(false)}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-4">
+              {loadingCadastroGeral ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-muted-foreground text-sm">Carregando dados...</div>
+                </div>
+              ) : !cadastroGeralPorDia || cadastroGeralPorDia.length === 0 ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-muted-foreground text-sm">Nenhum dado encontrado no período selecionado.</div>
+                </div>
+              ) : (
+                <>
+                  {/* Totalizadores do período */}
+                  {(() => {
+                    const totalGeral = cadastroGeralPorDia.reduce((s: number, d: any) => s + d.total, 0);
+                    const totalCRM = cadastroGeralPorDia.reduce((s: number, d: any) => s + d.viaCRM, 0);
+                    const totalSemCRM = cadastroGeralPorDia.reduce((s: number, d: any) => s + d.semCRM, 0);
+                    const pctCRM = totalGeral > 0 ? Math.round((totalCRM / totalGeral) * 100) : 0;
+                    return (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-xl border bg-indigo-50 border-indigo-200 p-3 text-center">
+                          <p className="text-[10px] sm:text-xs text-indigo-600 font-medium mb-1">Total Geral</p>
+                          <p className="text-xl sm:text-2xl font-bold text-indigo-700">{totalGeral}</p>
+                          <p className="text-[10px] text-indigo-500">{cadastroGeralPorDia.length} dias</p>
+                        </div>
+                        <div className="rounded-xl border bg-emerald-50 border-emerald-200 p-3 text-center">
+                          <p className="text-[10px] sm:text-xs text-emerald-600 font-medium mb-1">Via CRM</p>
+                          <p className="text-xl sm:text-2xl font-bold text-emerald-700">{totalCRM}</p>
+                          <p className="text-[10px] text-emerald-500">{pctCRM}% do total</p>
+                        </div>
+                        <div className="rounded-xl border bg-orange-50 border-orange-200 p-3 text-center">
+                          <p className="text-[10px] sm:text-xs text-orange-600 font-medium mb-1">Sem CRM</p>
+                          <p className="text-xl sm:text-2xl font-bold text-orange-700">{totalSemCRM}</p>
+                          <p className="text-[10px] text-orange-500">{100 - pctCRM}% do total</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Gráfico empilhado */}
+                  <div className="rounded-xl border bg-card p-3 sm:p-4">
+                    <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Visão Gráfica</p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart
+                        data={cadastroGeralPorDia.map((d: any) => ({
+                          ...d,
+                          label: `${d.data.slice(8, 10)}/${d.data.slice(5, 7)}`,
+                        }))}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="label" tick={{ fontSize: 9 }} angle={-45} textAnchor="end" height={45} />
+                        <YAxis tick={{ fontSize: 10 }} width={28} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
+                          formatter={(value: number, name: string) => {
+                            const label = name === "viaCRM" ? "Via CRM" : name === "semCRM" ? "Sem CRM" : "Total";
+                            return [value, label];
+                          }}
+                        />
+                        <Legend formatter={(v) => v === "viaCRM" ? "Via CRM" : "Sem CRM"} />
+                        <Bar dataKey="viaCRM" stackId="a" fill="#10b981" name="viaCRM" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="semCRM" stackId="a" fill="#f97316" name="semCRM" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Tabela dia a dia */}
+                  <div className="rounded-xl border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/60 border-b">
+                          <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-semibold text-muted-foreground">Data</th>
+                          <th className="text-right px-3 sm:px-4 py-2.5 text-xs font-semibold text-indigo-600">Total</th>
+                          <th className="text-right px-3 sm:px-4 py-2.5 text-xs font-semibold text-emerald-600">Via CRM</th>
+                          <th className="text-right px-3 sm:px-4 py-2.5 text-xs font-semibold text-orange-600">Sem CRM</th>
+                          <th className="text-right px-3 sm:px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden sm:table-cell">% CRM</th>
+                          <th className="px-3 sm:px-4 py-2.5 hidden sm:table-cell w-28"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...cadastroGeralPorDia].reverse().map((d: any, i: number) => {
+                          const pct = d.total > 0 ? Math.round((d.viaCRM / d.total) * 100) : 0;
+                          const [ano, mes, dia] = d.data.split("-");
+                          return (
+                            <tr key={d.data} className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                              <td className="px-3 sm:px-4 py-2.5 font-medium text-xs sm:text-sm">{`${dia}/${mes}/${ano}`}</td>
+                              <td className="px-3 sm:px-4 py-2.5 text-right font-bold text-indigo-700 text-xs sm:text-sm">{d.total}</td>
+                              <td className="px-3 sm:px-4 py-2.5 text-right text-emerald-600 font-semibold text-xs sm:text-sm">{d.viaCRM}</td>
+                              <td className="px-3 sm:px-4 py-2.5 text-right text-orange-600 font-semibold text-xs sm:text-sm">{d.semCRM}</td>
+                              <td className="px-3 sm:px-4 py-2.5 text-right text-xs text-muted-foreground hidden sm:table-cell">{pct}%</td>
+                              <td className="px-3 sm:px-4 py-2.5 hidden sm:table-cell">
+                                <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-200">
+                                  <div className="bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                                  <div className="bg-orange-400 transition-all flex-1" style={{ width: `${100 - pct}%` }} />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
