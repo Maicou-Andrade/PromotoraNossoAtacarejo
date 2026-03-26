@@ -19,7 +19,7 @@ const PG_CONFIG = {
   host: '189.126.142.41',
   user: 'dbatacarejo',
   password: 'u98>C{8WO2xF',
-  database: 'postgres',
+  database: 'Atacarejo',
   port: 5432,
 };
 
