@@ -6,8 +6,19 @@ import type { TrpcContext } from "./context";
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
-    console.error('[tRPC Error]', error.code, error.message, error.cause);
-    return shape;
+    // Log apenas código — nunca dados da query, stack trace ou payload
+    if (error.code !== "UNAUTHORIZED" && error.code !== "FORBIDDEN") {
+      console.error("[API Error]", error.code);
+    }
+    // Nunca expor detalhes internos ao cliente
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        stack: undefined,
+        path: undefined,
+      },
+    };
   },
 });
 
